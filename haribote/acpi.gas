@@ -1,0 +1,348 @@
+	.file	"acpi.c"
+	.text
+	.balign 2
+.globl _checksum
+	.def	_checksum;	.scl	2;	.type	32;	.endef
+_checksum:
+	pushl	%ebp
+	xorl	%eax, %eax
+	movl	%esp, %ebp
+	xorl	%edx, %edx
+	pushl	%ebx
+	movl	12(%ebp), %ecx
+	movl	8(%ebp), %ebx
+	cmpl	%ecx, %eax
+	jae	L8
+L6:
+	addb	(%eax,%ebx), %dl
+	incl	%eax
+	cmpl	%ecx, %eax
+	jb	L6
+L8:
+	popl	%ebx
+	xorl	%eax, %eax
+	popl	%ebp
+	testb	%dl, %dl
+	sete	%al
+	ret
+	.data
+LC0:
+	.ascii "RSD PTR \0"
+	.text
+	.balign 2
+.globl _acpi_find_rsdp
+	.def	_acpi_find_rsdp;	.scl	2;	.type	32;	.endef
+_acpi_find_rsdp:
+	pushl	%ebp
+	movl	%esp, %ebp
+	pushl	%edi
+	pushl	%esi
+	pushl	%ebx
+	movl	$917504, %ebx
+L16:
+	cld
+	movl	%ebx, %esi
+	movl	$LC0, %edi
+	movl	$8, %ecx
+	repe
+	cmpsb
+	je	L19
+L12:
+	addl	$4, %ebx
+	cmpl	$1048575, %ebx
+	jbe	L16
+	xorl	%edx, %edx
+L9:
+	leal	-12(%ebp), %esp
+	movl	%edx, %eax
+	popl	%ebx
+	popl	%esi
+	popl	%edi
+	popl	%ebp
+	ret
+L19:
+	pushl	20(%ebx)
+	pushl	%ebx
+	call	_checksum
+	popl	%edx
+	popl	%ecx
+	testb	%al, %al
+	movl	%ebx, %edx
+	je	L12
+	jmp	L9
+	.balign 2
+.globl _acpi_find_table
+	.def	_acpi_find_table;	.scl	2;	.type	32;	.endef
+_acpi_find_table:
+	pushl	%ebp
+	movl	%esp, %ebp
+	pushl	%edi
+	pushl	%esi
+	pushl	%ebx
+	subl	$16, %esp
+	movl	_RSDT, %eax
+	movl	$0, -16(%ebp)
+	movl	4(%eax), %ebx
+	movl	%eax, -20(%ebp)
+	subl	$36, %ebx
+	shrl	$2, %ebx
+	cmpl	%ebx, -16(%ebp)
+	jge	L28
+	movl	$0, -24(%ebp)
+L26:
+	movl	-20(%ebp), %edx
+	movl	-24(%ebp), %ecx
+	movl	$4, %eax
+	movl	8(%ebp), %edi
+	addl	36(%edx), %ecx
+	cld
+	movl	%ecx, -28(%ebp)
+	movl	%ecx, %esi
+	movl	%eax, %ecx
+	repe
+	cmpsb
+	seta	%dl
+	setb	%al
+	movl	-28(%ebp), %ecx
+	cmpb	%al, %dl
+	je	L20
+	incl	-16(%ebp)
+	addl	$4, -24(%ebp)
+	cmpl	%ebx, -16(%ebp)
+	jl	L26
+L28:
+	xorl	%ecx, %ecx
+L20:
+	addl	$16, %esp
+	movl	%ecx, %eax
+	popl	%ebx
+	popl	%esi
+	popl	%edi
+	popl	%ebp
+	ret
+	.data
+LC1:
+	.ascii "FACP\0"
+	.text
+	.balign 2
+.globl _init_acpi
+	.def	_init_acpi;	.scl	2;	.type	32;	.endef
+_init_acpi:
+	pushl	%ebp
+	movl	%esp, %ebp
+	pushl	%ebx
+	call	_acpi_find_rsdp
+	movl	%eax, _RSDP
+	testl	%eax, %eax
+	jne	L64
+L29:
+	movl	-4(%ebp), %ebx
+	leave
+	ret
+L64:
+	movl	16(%eax), %eax
+	movl	%eax, _RSDT
+	pushl	4(%eax)
+	pushl	%eax
+	call	_checksum
+	popl	%ebx
+	popl	%edx
+	testb	%al, %al
+	je	L29
+	pushl	$LC1
+	call	_acpi_find_table
+	movl	%eax, _FADT
+	pushl	4(%eax)
+	pushl	%eax
+	call	_checksum
+	addl	$12, %esp
+	testb	%al, %al
+	je	L29
+	movl	_FADT, %eax
+	pushl	64(%eax)
+	call	_io_in16
+	popl	%ecx
+	andl	$1, %eax
+	jne	L29
+	movl	_FADT, %edx
+	cmpl	$0, 48(%edx)
+	je	L29
+	movb	52(%edx), %al
+	testb	%al, %al
+	je	L29
+	movzbl	%al, %eax
+	pushl	%eax
+	xorl	%ebx, %ebx
+	pushl	48(%edx)
+	call	_io_out8
+	popl	%eax
+	popl	%edx
+L45:
+	movl	_FADT, %eax
+	pushl	64(%eax)
+	call	_io_in16
+	popl	%ecx
+	andl	$1, %eax
+	jne	L36
+	movl	$999999, %eax
+L44:
+	decl	%eax
+	jns	L44
+	incl	%ebx
+	cmpl	$299, %ebx
+	jle	L45
+L36:
+	movl	_FADT, %eax
+	cmpl	$0, 68(%eax)
+	je	L29
+	cmpl	$299, %ebx
+	jg	L29
+L57:
+	movl	_FADT, %eax
+	pushl	68(%eax)
+	call	_io_in16
+	popl	%edx
+	andl	$1, %eax
+	jne	L29
+	movl	$999999, %eax
+L56:
+	decl	%eax
+	jns	L56
+	incl	%ebx
+	cmpl	$299, %ebx
+	jle	L57
+	jmp	L29
+	.data
+LC2:
+	.ascii "DSDT\0"
+LC3:
+	.ascii "_S5_\0"
+	.text
+	.balign 2
+.globl _acpi_shutdown
+	.def	_acpi_shutdown;	.scl	2;	.type	32;	.endef
+_acpi_shutdown:
+	pushl	%ebp
+	movl	%esp, %ebp
+	pushl	%edi
+	pushl	%esi
+	pushl	%ebx
+	subl	$12, %esp
+	pushl	$LC2
+	call	_acpi_find_table
+	movl	$0, -20(%ebp)
+	movl	4(%eax), %ebx
+	movl	%eax, -24(%ebp)
+	subl	$36, %ebx
+	popl	%eax
+	shrl	$2, %ebx
+	cmpl	%ebx, -20(%ebp)
+	jge	L72
+L71:
+	movl	$LC3, %edx
+	movl	$4, %eax
+	cld
+	movl	-24(%ebp), %esi
+	movl	%edx, %edi
+	movl	%eax, %ecx
+	repe
+	cmpsb
+	je	L67
+	incl	-20(%ebp)
+	incl	-24(%ebp)
+	cmpl	%ebx, -20(%ebp)
+	jl	L71
+L72:
+	leal	-12(%ebp), %esp
+	movl	$1, %eax
+	popl	%ebx
+	popl	%esi
+	popl	%edi
+	popl	%ebp
+	ret
+L67:
+	cmpl	%ebx, -20(%ebp)
+	jge	L72
+	movl	-24(%ebp), %edx
+	movb	-1(%edx), %al
+	cmpb	$8, %al
+	je	L74
+	cmpb	$8, -2(%edx)
+	je	L79
+L73:
+	orw	$8192, -14(%ebp)
+	movzwl	-14(%ebp), %eax
+	pushl	%eax
+	movl	_FADT, %eax
+	pushl	64(%eax)
+	call	_io_out16
+	popl	%esi
+	movl	_FADT, %edx
+	popl	%edi
+	cmpl	$0, 68(%edx)
+	je	L72
+	orw	$8192, -16(%ebp)
+	movzwl	-16(%ebp), %eax
+	pushl	%eax
+	pushl	68(%edx)
+	call	_io_out16
+	popl	%ecx
+	popl	%ebx
+	jmp	L72
+L79:
+	cmpb	$92, %al
+	jne	L73
+L74:
+	movl	-24(%ebp), %ecx
+	cmpb	$18, 4(%ecx)
+	jne	L73
+	addl	$5, %ecx
+	movsbl	(%ecx),%eax
+	andl	$192, %eax
+	sarl	$6, %eax
+	addl	%ecx, %eax
+	leal	2(%eax), %edi
+	movl	%edi, -24(%ebp)
+	cmpb	$10, 2(%eax)
+	je	L80
+L75:
+	movl	-24(%ebp), %eax
+	movsbw	(%eax),%ax
+	sall	$10, %eax
+	incl	-24(%ebp)
+	movw	%ax, -14(%ebp)
+	movl	-24(%ebp), %edx
+	cmpb	$10, (%edx)
+	je	L81
+L76:
+	movl	-24(%ebp), %ecx
+	movsbw	(%ecx),%cx
+	sall	$10, %ecx
+	movw	%cx, -16(%ebp)
+	jmp	L73
+L81:
+	incl	%edx
+	movl	%edx, -24(%ebp)
+	jmp	L76
+L80:
+	addl	$3, %eax
+	movl	%eax, -24(%ebp)
+	jmp	L75
+.globl _RSDP
+	.data
+	.balign 4
+_RSDP:
+	.space 4
+.globl _RSDT
+	.data
+	.balign 4
+_RSDT:
+	.space 4
+.globl _FADT
+	.data
+	.balign 4
+_FADT:
+	.space 4
+	.def	_io_out16;	.scl	2;	.type	32;	.endef
+	.def	_io_out8;	.scl	2;	.type	32;	.endef
+	.def	_io_in16;	.scl	2;	.type	32;	.endef
