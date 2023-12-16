@@ -1,0 +1,2 @@
+这些文件是SpaceOS第一个版本的源代码。
+如果您想下载最新源代码，请转到releases，选择最新版本，下载名为spaceos-source-code.new.zip的文件。这个文件里包含最新版本的源码。
