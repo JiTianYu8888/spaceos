@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <body>
-<h1如何运行SpaceOS</h1>
+<h1>如何运行SpaceOS</h1>
 <p>如果您不会运行SpaceOS，请按照步骤来运行。</p>
 <p>第一步：下载并安装Vmware Workstation。</p>
 <p>第二步：打开vmware workstation,单击文件-新建虚拟机。</p>
